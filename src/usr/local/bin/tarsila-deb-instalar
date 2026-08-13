@@ -1,10 +1,10 @@
 #!/bin/bash
 # Instala um arquivo .deb avulso (apt resolve as dependências no
-# repositório configurado). Se a Tarsila Store estiver instalada, cria
-# atalho curado via tarsila-atalho-criar. Roda como root, chamado via
-# "sudo -S" pelo tarsila-deb-gui.py — que pede a senha ao usuário numa
-# caixa gráfica, sem NOPASSWD: instalar um .deb qualquer roda scripts
-# de pós-instalação como root, então a senha é sempre pedida de verdade.
+# repositório configurado) e cria o atalho curado para aparecer no
+# AppFinder. Roda como root, chamado via "sudo -S" pelo tarsila-deb-gui.py
+# — que pede a senha ao usuário numa caixa gráfica, sem NOPASSWD:
+# instalar um .deb qualquer roda scripts de pós-instalação como root,
+# então a senha é sempre pedida de verdade.
 #
 # Uso: tarsila-deb-instalar <caminho-do-.deb>
 #
@@ -16,6 +16,7 @@ export DEBIAN_FRONTEND=noninteractive
 
 ARQUIVO="${1:?uso: tarsila-deb-instalar <caminho-do-.deb>}"
 LOG="/var/log/tarsila-deb-instalar.log"
+ATALHO_CRIAR="/usr/local/bin/tarsila-atalho-criar"
 
 [ -f "$ARQUIVO" ] || { echo "arquivo não encontrado: $ARQUIVO" >&2; exit 1; }
 
@@ -29,8 +30,8 @@ echo "$(date -Is) INICIO instalar-deb $PKG ($ARQUIVO)" >> "$LOG" 2>/dev/null || 
 # (ex.: o gatilho do bamfdaemon) usam pra escrever — "echo: I/O error".
 apt-get install -y -o APT::Status-Fd=1 "$ARQUIVO"
 
-# Se a Store estiver instalada, cria atalho curado; se não, só instalou o .deb.
-ATALHO_CRIAR="/opt/tarsila-store/bin/tarsila-atalho-criar"
-[ -x "$ATALHO_CRIAR" ] && "$ATALHO_CRIAR" "$PKG" || true
+# Atalho curado é universal: qualquer .deb instalado vira atalho no
+# AppFinder (não depende da Store).
+"$ATALHO_CRIAR" "$PKG" || true
 
 echo "$(date -Is) OK instalar-deb $PKG" >> "$LOG" 2>/dev/null || true

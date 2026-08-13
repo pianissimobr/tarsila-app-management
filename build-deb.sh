@@ -21,6 +21,7 @@ install -m 755 "$SCRIPT_DIR/src/usr/local/bin/tarsila-app-uninstall.sh"  "$BUILD
 install -m 755 "$SCRIPT_DIR/src/usr/local/bin/tarsila-appfinder-yad.sh"   "$BUILD_DIR/usr/local/bin/"
 install -m 755 "$SCRIPT_DIR/src/usr/local/bin/tarsila-deb-gui.py"         "$BUILD_DIR/usr/local/bin/"
 install -m 755 "$SCRIPT_DIR/src/usr/local/bin/tarsila-deb-instalar"       "$BUILD_DIR/usr/local/bin/"
+install -m 755 "$SCRIPT_DIR/src/usr/local/bin/tarsila-atalho-criar"       "$BUILD_DIR/usr/local/bin/"
 install -m 644 "$SCRIPT_DIR/src/usr/share/applications/tarsila-deb-installer.desktop" "$BUILD_DIR/usr/share/applications/"
 install -m 644 "$SCRIPT_DIR/src/usr/share/applications/tarsila-appfinder-yad.desktop" "$BUILD_DIR/usr/share/applications/"
 
