@@ -29,6 +29,17 @@ para ela — preservando a whitelist do catálogo comunitário. Se não, usam
 A Tarsila Store, por sua vez, **depende** deste pacote (`Depends:
 tarsila-app-management`).
 
+## Integração com Dock (opcional)
+
+Em sistemas **Tarsila OS** (Plank + `tarsila-dock-manager` +
+`tarsila-dock-apply.sh`), o AppFinder gerencia os ícones da dock
+automaticamente: adiciona ao instalar, remove ao desinstalar, sincroniza
+a ordem ao vivo.
+
+Em qualquer outro Debian, a integração com dock é automaticamente
+desativada — o gerenciamento de apps (listar, buscar, lançar, desinstalar)
+funciona normalmente, sem tocar em docks de terceiros.
+
 ## Build
 
 ```bash

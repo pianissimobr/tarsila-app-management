@@ -92,7 +92,7 @@ else
 fi
 REAL_HOME="$(getent passwd "$REAL_USER" | cut -d: -f6)"
 DOCK_CONFIG="$REAL_HOME/.config/plank/dock1/launchers/"
-mkdir -p "$DOCK_CONFIG" 2>/dev/null || true
+command -v plank &>/dev/null && mkdir -p "$DOCK_CONFIG" 2>/dev/null || true
 
 # Carrega apps curados
 declare -A curated_apps
@@ -223,13 +223,15 @@ uninstall_app() {
             sudo -n apt-get remove -y "$package_name" >/dev/null 2>&1 && ok=1 || ok=0
         fi
         if [ "$ok" = 1 ]; then
-            find "$DOCK_CONFIG" -name "*.dockitem" 2>/dev/null | while read -r dockitem; do
-                if grep -q "$(basename "$desktop_file")" "$dockitem" 2>/dev/null; then
-                    rm -f "$dockitem"
-                fi
-            done
-            sync_dock_order
-            restart_plank
+            if command -v plank &>/dev/null; then
+                find "$DOCK_CONFIG" -name "*.dockitem" 2>/dev/null | while read -r dockitem; do
+                    if grep -q "$(basename "$desktop_file")" "$dockitem" 2>/dev/null; then
+                        rm -f "$dockitem"
+                    fi
+                done
+                sync_dock_order
+                restart_plank
+            fi
             if command -v notify-send &>/dev/null; then
                 notify-send "Desinstalação concluída" "'$app_name' foi removido."
             fi
