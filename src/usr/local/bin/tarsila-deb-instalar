@@ -1,0 +1,36 @@
+#!/bin/bash
+# Instala um arquivo .deb avulso (apt resolve as dependências no
+# repositório configurado). Se a Tarsila Store estiver instalada, cria
+# atalho curado via tarsila-atalho-criar. Roda como root, chamado via
+# "sudo -S" pelo tarsila-deb-gui.py — que pede a senha ao usuário numa
+# caixa gráfica, sem NOPASSWD: instalar um .deb qualquer roda scripts
+# de pós-instalação como root, então a senha é sempre pedida de verdade.
+#
+# Uso: tarsila-deb-instalar <caminho-do-.deb>
+#
+# Emite no stdout o progresso no formato "pmstatus:pacote:percentual:
+# descrição" (o mesmo que o apt gera com APT::Status-Fd=1), para o
+# instalador gráfico desenhar uma barra de progresso.
+set -euo pipefail
+export DEBIAN_FRONTEND=noninteractive
+
+ARQUIVO="${1:?uso: tarsila-deb-instalar <caminho-do-.deb>}"
+LOG="/var/log/tarsila-deb-instalar.log"
+
+[ -f "$ARQUIVO" ] || { echo "arquivo não encontrado: $ARQUIVO" >&2; exit 1; }
+
+PKG="$(dpkg-deb -f "$ARQUIVO" Package 2>/dev/null || true)"
+[ -n "$PKG" ] || { echo "não é um pacote .deb válido: $ARQUIVO" >&2; exit 1; }
+
+echo "$(date -Is) INICIO instalar-deb $PKG ($ARQUIVO)" >> "$LOG" 2>/dev/null || true
+
+# Sem "-o Dpkg::Use-Pty=0": nesse equipamento, combinado com
+# APT::Status-Fd=1, ele quebra o fd que os scripts de pós-instalação
+# (ex.: o gatilho do bamfdaemon) usam pra escrever — "echo: I/O error".
+apt-get install -y -o APT::Status-Fd=1 "$ARQUIVO"
+
+# Se a Store estiver instalada, cria atalho curado; se não, só instalou o .deb.
+ATALHO_CRIAR="/opt/tarsila-store/bin/tarsila-atalho-criar"
+[ -x "$ATALHO_CRIAR" ] && "$ATALHO_CRIAR" "$PKG" || true
+
+echo "$(date -Is) OK instalar-deb $PKG" >> "$LOG" 2>/dev/null || true

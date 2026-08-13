@@ -1,0 +1,6 @@
+#!/bin/bash
+set -e
+echo "tarsila-app-management: atualizando caches do sistema..."
+update-desktop-database /usr/share/applications 2>/dev/null || true
+gtk-update-icon-cache -q /usr/share/icons/hicolor 2>/dev/null || true
+echo "tarsila-app-management: instalado."
