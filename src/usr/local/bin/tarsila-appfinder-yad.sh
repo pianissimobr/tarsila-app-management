@@ -217,7 +217,7 @@ uninstall_app() {
     # notificacao avisa e o app volta na proxima abertura do AppFinder.
     rm -f "$TMP_DIR/${aba_de[$app_name]}/${app_name}.desktop"
     (
-        if [ -x /opt/tarsila-store/bin/tarsila-pkg ]; then
+        if [ -x /opt/tarsila-store/bin/tarsila-pkg ] && grep -qxF "$package_name" /opt/tarsila-store/whitelist.txt 2>/dev/null; then
             sudo -n /opt/tarsila-store/bin/tarsila-pkg remove "$package_name" >/dev/null 2>&1 && ok=1 || ok=0
         else
             sudo -n apt-get remove -y "$package_name" >/dev/null 2>&1 && ok=1 || ok=0

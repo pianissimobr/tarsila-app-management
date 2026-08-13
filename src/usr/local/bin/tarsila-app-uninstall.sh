@@ -36,7 +36,7 @@ yad --question --center --fixed --title="Desinstalar" --width=400 \
     --text="Deseja realmente desinstalar '$NOME'?" || exit 0
 
 (
-  if [ -x /opt/tarsila-store/bin/tarsila-pkg ]; then
+  if [ -x /opt/tarsila-store/bin/tarsila-pkg ] && grep -qxF "$package" /opt/tarsila-store/whitelist.txt 2>/dev/null; then
     if sudo -n /opt/tarsila-store/bin/tarsila-pkg remove "$package" >/dev/null 2>&1; then
       ok=1
     else
