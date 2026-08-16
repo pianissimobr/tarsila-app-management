@@ -35,15 +35,31 @@ fi
 yad --question --center --fixed --title="Desinstalar" --width=400 \
     --text="Deseja realmente desinstalar '$NOME'?" || exit 0
 
+# App do catálogo sai sem senha: o tarsila-pkg tem regra NOPASSWD própria,
+# que é segura porque ele valida o pacote contra a whitelist antes de agir.
+# Qualquer outro app passa pelo apt-get, que NÃO tem regra NOPASSWD em lugar
+# nenhum do projeto -- e por isso precisa da senha. Antes daqui a chamada era
+# "sudo -n apt-get" (não-interativo): falhava sempre, e em silêncio.
+SENHA=""
+if [ -x /opt/tarsila-store/bin/tarsila-pkg ] && grep -qxF "$package" /opt/tarsila-store/whitelist.txt 2>/dev/null; then
+  VIA_CATALOGO=1
+else
+  VIA_CATALOGO=0
+  SENHA=$(/usr/local/bin/tarsila-pedir-senha \
+            "Desinstalar '$NOME' exige a senha de administrador.") || exit 0
+fi
+
 (
-  if [ -x /opt/tarsila-store/bin/tarsila-pkg ] && grep -qxF "$package" /opt/tarsila-store/whitelist.txt 2>/dev/null; then
-    if sudo -n /opt/tarsila-store/bin/tarsila-pkg remove "$package" >/dev/null 2>&1; then
+  erro=""
+  if [ "$VIA_CATALOGO" = 1 ]; then
+    if erro=$(sudo -n /opt/tarsila-store/bin/tarsila-pkg remove "$package" 2>&1 >/dev/null); then
       ok=1
     else
       ok=0
     fi
   else
-    if sudo -n apt-get remove -y "$package" >/dev/null 2>&1; then
+    if erro=$(printf '%s\n' "$SENHA" \
+              | sudo -S -k -p "" apt-get remove -y "$package" 2>&1 >/dev/null); then
       ok=1
     else
       ok=0
@@ -62,8 +78,12 @@ yad --question --center --fixed --title="Desinstalar" --width=400 \
     command -v notify-send >/dev/null \
       && notify-send "Desinstalação concluída" "'$NOME' foi removido."
   else
+    # O motivo importa: antes a saída ia toda para /dev/null e a falha era
+    # indistinguível de "não aconteceu nada".
+    detalhe=$(printf '%s' "$erro" | tail -2 | tr '\n' ' ')
     command -v notify-send >/dev/null \
-      && notify-send "Desinstalação falhou" "Não foi possível remover '$NOME'."
+      && notify-send "Desinstalação falhou" \
+                     "Não foi possível remover '$NOME'. ${detalhe:-Verifique o log.}"
   fi
 ) &
 yad --info --center --fixed --title="Desinstalando" --timeout=3 \

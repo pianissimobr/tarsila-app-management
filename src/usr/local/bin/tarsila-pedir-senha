@@ -1,0 +1,98 @@
+#!/usr/bin/env python3
+"""Caixa gráfica que pede a senha de administrador e a devolve validada.
+
+Uso:
+    senha=$(tarsila-pedir-senha "Desinstalar aplicativos exige a senha.") || exit 0
+    printf '%s\n' "$senha" | sudo -S -k -p "" apt-get remove -y pacote
+
+Escreve a senha em stdout e sai com 0; sai com 1 se o usuário cancelar.
+A senha NUNCA vai por argumento de linha de comando -- argv é visível para
+qualquer processo via `ps`. Por stdout ela atravessa um cano entre dois
+processos nossos, que ninguém de fora lê.
+
+POR QUE ISTO EXISTE
+A instalação de .deb já pedia a senha assim, dentro do tarsila-deb-gui.py.
+A desinstalação, não: ela chamava `sudo -n` (não-interativo, nunca pergunta)
+e mandava a saída para /dev/null. Como não existe regra NOPASSWD para o
+apt-get em lugar nenhum do projeto, desinstalar qualquer app fora do catálogo
+da Store falhava -- e falhava calada. O caso mais visível era justamente o
+app que o usuário tinha acabado de instalar com duplo clique.
+
+Os apps DO catálogo continuam saindo sem senha: para eles o caminho é o
+tarsila-pkg, que tem regra NOPASSWD própria porque valida contra a whitelist
+antes de agir. Só o caminho genérico (apt-get) pede senha.
+"""
+import gi
+gi.require_version("Gtk", "3.0")
+from gi.repository import Gtk
+
+import subprocess
+import sys
+
+MENSAGEM_PADRAO = "Esta ação exige a senha de administrador."
+
+
+def senha_valida(senha):
+    """Confere a senha sem executar nada: `sudo true` não muda o sistema."""
+    try:
+        r = subprocess.run(["sudo", "-S", "-k", "-p", "", "true"],
+                           input=senha + "\n", capture_output=True,
+                           text=True, timeout=10)
+        return r.returncode == 0
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        return False
+
+
+def pedir(mensagem):
+    dlg = Gtk.Dialog(title="Autorização necessária", modal=True)
+    dlg.add_buttons("Cancelar", Gtk.ResponseType.CANCEL,
+                    "Confirmar", Gtk.ResponseType.OK)
+    dlg.set_default_response(Gtk.ResponseType.OK)
+    dlg.set_position(Gtk.WindowPosition.CENTER)
+    content = dlg.get_content_area()
+    content.set_spacing(10)
+    content.set_margin_start(16)
+    content.set_margin_end(16)
+    content.set_margin_top(12)
+    content.set_margin_bottom(12)
+    content.pack_start(Gtk.Label(label=mensagem), False, False, 0)
+
+    entry = Gtk.Entry()
+    entry.set_visibility(False)
+    entry.set_placeholder_text("Senha")
+    entry.set_activates_default(True)
+    content.pack_start(entry, False, False, 0)
+
+    aviso = Gtk.Label(label="")
+    content.pack_start(aviso, False, False, 0)
+    content.show_all()
+
+    while True:
+        entry.grab_focus()
+        if dlg.run() != Gtk.ResponseType.OK:
+            dlg.destroy()
+            return None
+        senha = entry.get_text()
+        if not senha:
+            aviso.set_markup("<span foreground='red'>Digite a senha.</span>")
+            continue
+        if senha_valida(senha):
+            dlg.destroy()
+            return senha
+        aviso.set_markup(
+            "<span foreground='red'>Senha incorreta. Tente de novo.</span>")
+        entry.set_text("")
+
+
+def main():
+    mensagem = sys.argv[1] if len(sys.argv) > 1 else MENSAGEM_PADRAO
+    senha = pedir(mensagem)
+    if senha is None:
+        return 1
+    # sem quebra de linha extra: quem chama decide como alimentar o sudo
+    sys.stdout.write(senha)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

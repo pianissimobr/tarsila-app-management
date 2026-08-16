@@ -11,65 +11,27 @@ NATIVES_FILE="/usr/share/tarsila/native-apps.txt"
 DOCK_MANAGER="/usr/local/bin/tarsila-dock-manager"
 ICON_HELPER="/usr/local/bin/tarsila-icon-cache"
 ICON_SIZE=48
+# ONDE ABRIR: encostada no fim da Dock, subindo a partir dela, como um menu
+# que sai do proprio botao "Ver mais".
+#
+# O calculo mora no tarsila-pos-dock, que o tarsila-gui instala, e e
+# compartilhado com a Lixeira e os Ajustes. Ate 2026-08-15 havia AQUI uma
+# copia inline dele -- 40 linhas com o mesmo Python embutido -- e as duas
+# versoes ja tinham divergido: a copia compensava a decoracao do yad em
+# (8, 64) e a tabela do pos-dock, em (9, 66). A janela abria dois pixels
+# fora do lugar em relacao as outras duas telas.
+#
+# Num Debian sem o tarsila-gui o helper nao existe: a funcao falha, e quem
+# chama cai no posicionamento padrao do yad (centralizado). E o comportamento
+# correto para esse caso -- sem Dock do Tarsila, nao ha borda onde encostar.
 # Tamanho com que a janela abre -- o que o usuario deixou ao ajustar na mao.
 JANELA_LARG=405
 JANELA_ALT=500
-# Onde o pe da janela fica em relacao ao topo da janela da Dock. O valor veio
-# de MEDIR a posicao que o usuario escolheu na mao (ele posicionou, eu derivei):
-# o pe cai 29px dentro da faixa do Plank, que ali ainda e area transparente
-# acima dos icones -- por isso encosta sem cobrir nada.
-DESCE_ATE=29
-# O yad PEDE uma posicao, mas o gerenciador de janelas soma a barra de titulo e
-# a borda antes de desenhar: pedindo 185 a janela nasceu em 218. Descontamos
-# isso ao pedir, para ela ja nascer no lugar em vez de aparecer e pular.
-# Nao sao coordenadas de tela -- e a espessura da decoracao que o gerenciador
-# acrescenta, propriedade do tema da janela. Medido: +8 na horizontal, +64 na
-# vertical (a barra de titulo mais as bordas).
-COMPENSA_X=8
-COMPENSA_Y=64
+POS_DOCK="/usr/local/bin/tarsila-pos-dock"
 
-
-# Onde abrir: encostada no fim da Dock, subindo a partir dela, como um menu que
-# sai do proprio botao "Ver mais". Em vez de chutar a largura da Dock (o Plank
-# ocupa a tela inteira, mas so pinta o pedaco do meio), medimos a janela DELE e
-# vemos ate onde ela esta pintada. Assim o calculo continua certo se o usuario
-# acrescentar icones ou mudar o tamanho deles.
 posicao_junto_da_dock() {
-    local plank px py pw ph
-    plank=$(xdotool search --class plank 2>/dev/null | while read -r w; do
-                eval "$(xdotool getwindowgeometry --shell "$w" 2>/dev/null)"
-                [ "${WIDTH:-0}" -gt 1000 ] && echo "$w"
-            done | head -n1)
-    [ -n "$plank" ] || return 1
-    eval "$(xdotool getwindowgeometry --shell "$plank" 2>/dev/null)" || return 1
-    px=$X; py=$Y
-    import -window "$plank" "$TMP_DIR/dock.png" 2>/dev/null || return 1
-    python3 - "$TMP_DIR/dock.png" "$px" "$py" "$JANELA_LARG" "$JANELA_ALT" \
-             "$DESCE_ATE" <<'PY'
-import sys
-from PIL import Image
-
-arq, px, py, larg, alt, desce = sys.argv[1:7]
-px, py, larg, alt, desce = map(int, (px, py, larg, alt, desce))
-im = Image.open(arq).convert("RGB")
-w, h = im.size
-p = im.load()
-canto = p[2, 2]                      # canto transparente/vazio da janela
-
-def pintado(c):
-    return sum(abs(a - b) for a, b in zip(c, canto)) > 30
-
-meio = h // 2
-xs = [x for x in range(w) if pintado(p[x, meio])]
-if not xs:
-    raise SystemExit(1)
-# So a medida horizontal vem dos pixels. A vertical NAO: 'import -window'
-# entrega a janela do Plank ja composta com o papel de parede, que tem
-# gradiente, entao comparar com o canto acusa "pintado" onde ha so fundo.
-# Para o eixo Y basta o topo da propria janela do Plank, que e exato.
-direita = px + xs[-1]                # onde a Dock termina, na tela
-print("%d %d" % (direita - larg, py - alt + desce))
-PY
+    [ -x "$POS_DOCK" ] || return 1
+    "$POS_DOCK" "$JANELA_LARG" "$JANELA_ALT" yad 2>/dev/null
 }
 
 
@@ -212,15 +174,31 @@ uninstall_app() {
              --width=400; then
         return 0
     fi
+    # App do catalogo sai sem senha: o tarsila-pkg tem regra NOPASSWD propria,
+    # segura porque ele valida o pacote contra a whitelist antes de agir.
+    # Qualquer outro app passa pelo apt-get, que NAO tem regra NOPASSWD em
+    # lugar nenhum do projeto -- e por isso precisa da senha. Ate 16/08 aqui
+    # era "sudo -n apt-get": nao-interativo, falhava sempre e em silencio.
+    # A senha e pedida ANTES de tirar o app da grade: se o usuario cancelar,
+    # nada muda na tela.
+    local senha="" via_catalogo=0
+    if [ -x /opt/tarsila-store/bin/tarsila-pkg ] && grep -qxF "$package_name" /opt/tarsila-store/whitelist.txt 2>/dev/null; then
+        via_catalogo=1
+    else
+        senha=$(/usr/local/bin/tarsila-pedir-senha \
+                  "Desinstalar '$app_name' exige a senha de administrador.") || return 0
+    fi
     # Tira o app da grade imediatamente (a janela reabre em seguida ja
     # sem ele; a remocao real continua em segundo plano). Se falhar, a
     # notificacao avisa e o app volta na proxima abertura do AppFinder.
     rm -f "$TMP_DIR/${aba_de[$app_name]}/${app_name}.desktop"
     (
-        if [ -x /opt/tarsila-store/bin/tarsila-pkg ] && grep -qxF "$package_name" /opt/tarsila-store/whitelist.txt 2>/dev/null; then
-            sudo -n /opt/tarsila-store/bin/tarsila-pkg remove "$package_name" >/dev/null 2>&1 && ok=1 || ok=0
+        erro=""
+        if [ "$via_catalogo" = 1 ]; then
+            erro=$(sudo -n /opt/tarsila-store/bin/tarsila-pkg remove "$package_name" 2>&1 >/dev/null) && ok=1 || ok=0
         else
-            sudo -n apt-get remove -y "$package_name" >/dev/null 2>&1 && ok=1 || ok=0
+            erro=$(printf '%s\n' "$senha" \
+                   | sudo -S -k -p "" apt-get remove -y "$package_name" 2>&1 >/dev/null) && ok=1 || ok=0
         fi
         if [ "$ok" = 1 ]; then
             if command -v plank &>/dev/null; then
@@ -236,8 +214,12 @@ uninstall_app() {
                 notify-send "Desinstalação concluída" "'$app_name' foi removido."
             fi
         else
+            # O motivo importa: antes a saida ia toda para /dev/null e a
+            # falha era indistinguivel de "nao aconteceu nada".
+            detalhe=$(printf '%s' "$erro" | tail -2 | tr '\n' ' ')
             if command -v notify-send &>/dev/null; then
-                notify-send "Desinstalação falhou" "Não foi possível remover '$app_name'."
+                notify-send "Desinstalação falhou" \
+                            "Não foi possível remover '$app_name'. ${detalhe:-Verifique o log.}"
             fi
         fi
     ) &
@@ -395,7 +377,10 @@ while true; do
         # lida pelo GTK antes de exibir, entao a janela ja nasce no lugar --
         # e o que faz a Lixeira (programa nosso, que move antes de mostrar)
         # nao piscar.
-        LUGAR="--geometry=${JANELA_LARG}x${JANELA_ALT}+$(( $1 - COMPENSA_X ))+$(( $2 - COMPENSA_Y ))"
+        # Ja vem descontada a espessura da decoracao: o tarsila-pos-dock
+        # recebe "yad" como terceiro argumento e aplica a compensacao da
+        # tabela dele. Era aqui que a copia inline divergia (8,64 contra 9,66).
+        LUGAR="--geometry=${JANELA_LARG}x${JANELA_ALT}+$1+$2"
     else
         LUGAR="--center"          # sem Dock visivel, volta ao meio da tela
     fi
