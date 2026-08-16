@@ -1,0 +1,24 @@
+Package: tarsila-motor
+Version: 1.0.0
+Section: admin
+Priority: optional
+Architecture: all
+Depends: python3, python3-gi, gir1.2-gtk-3.0, yad, apt, sudo
+Recommends: libnotify-bin
+Suggests: tarsila-gui, tarsila-store, plank
+Replaces: tarsila-app-management (<< 2.0.0)
+Breaks: tarsila-app-management (<< 2.0.0)
+Maintainer: Piano Lab Ribeirao <adm@pianolabribeirao.com.br>
+Homepage: https://pianolabribeirao.com.br
+Description: Motor de atalhos curados do Tarsila OS
+ A vida inteira de um atalho curado: criar, quando um pacote é instalado, e
+ remover, quando o usuário desinstala o app pelo clique direito no ícone.
+ .
+ São duas metades de uma coisa só. Todo atalho que o tarsila-atalho-criar
+ gera embute uma ação "Desinstalar" apontando para o tarsila-app-uninstall.sh;
+ entregar um sem o outro faria cada atalho nascer com um item de menu morto.
+ .
+ Existe como pacote separado porque a Tarsila Store precisa criar e remover
+ atalhos sem depender da interface gráfica de gerenciamento (o AppFinder e o
+ instalador de .deb, que vêm no tarsila-app-management). Antes a Store
+ carregava uma cópia própria destes arquivos, e as duas versões divergiram.

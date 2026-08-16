@@ -1,0 +1,10 @@
+#!/bin/bash
+set -e
+# Os diretorios curados pertencem ao motor: e o tarsila-atalho-criar que
+# escreve neles, e ele mora aqui. Antes eram criados pelo postinst do
+# tarsila-app-management, o que deixava a Store dependendo de um pacote que
+# ela nao instala para ter onde por os atalhos.
+mkdir -p /usr/share/tarsila/applications \
+         /usr/share/tarsila/games \
+         /usr/share/tarsila/icons
+exit 0

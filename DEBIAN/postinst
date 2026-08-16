@@ -1,11 +1,8 @@
 #!/bin/bash
 set -e
-echo "tarsila-app-management: criando diretórios curados do Tarsila..."
-# Mesmos caminhos que o sistema operacional Tarsila referencia para os
-# apps gerenciados (dock, appfinder e tarsila-atalho-criar).
-mkdir -p /usr/share/tarsila/applications /usr/share/tarsila/games /usr/share/tarsila/icons
-
-echo "tarsila-app-management: atualizando caches do sistema..."
+# Os diretorios curados NAO sao criados aqui: pertencem ao tarsila-motor,
+# que e quem escreve neles (tarsila-atalho-criar). Este pacote so registra o
+# instalador de .deb como aplicativo capaz de abrir pacotes Debian.
 update-desktop-database /usr/share/applications 2>/dev/null || true
 gtk-update-icon-cache -q /usr/share/icons/hicolor 2>/dev/null || true
-echo "tarsila-app-management: instalado."
+exit 0
