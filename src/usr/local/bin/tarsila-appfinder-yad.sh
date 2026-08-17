@@ -53,8 +53,12 @@ else
     REAL_USER="$(whoami)"
 fi
 REAL_HOME="$(getent passwd "$REAL_USER" | cut -d: -f6)"
+# A pasta guarda os .dockitem, que a tarsila-dock le. O nome "plank" no caminho
+# e heranca: o formato e o lugar ficaram, o programa nao. Ate 17/08/2026 este
+# mkdir era condicionado a `command -v plank` -- sem o Plank instalado, a pasta
+# nunca era criada.
 DOCK_CONFIG="$REAL_HOME/.config/plank/dock1/launchers/"
-command -v plank &>/dev/null && mkdir -p "$DOCK_CONFIG" 2>/dev/null || true
+mkdir -p "$DOCK_CONFIG" 2>/dev/null || true
 
 # Carrega apps curados
 declare -A curated_apps
@@ -114,20 +118,18 @@ sync_dock_order() {
     dconf write "$DOCK_DCONF_KEY" "$items" 2>/dev/null || true
 }
 
-# O Plank desta versão só carrega itens novos de forma confiável ao
-# iniciar (a descoberta ao vivo via inotify tem o bug do Launcher=
-# vazio, ver pin_to_dock, e além disso o ícone não aparece na tela até
-# reiniciar). Por isso, depois de qualquer mudança no dock, reiniciamos
-# o Plank para refletir o estado correto imediatamente.
-restart_plank() {
-    command -v plank &>/dev/null || return 0
-    pkill -x plank 2>/dev/null
-    sleep 0.3
+# Avisa a Dock de que a lista mudou. Ela observa a pasta dos .dockitem por
+# inotify e se remonta sozinha em ~400 ms, entao aqui basta reescrever a ordem.
+#
+# Ate 17/08/2026 esta funcao chamava-se restart_plank e fazia o ritual da epoca:
+# `pkill -x plank`, sleep 0,3, dock-apply, `nohup plank &`. Existia porque o
+# Plank so carregava item novo ao iniciar -- a descoberta ao vivo dele tinha o
+# bug do Launcher= vazio. O Plank saiu em 16/08 e a funcao inteira virou no-op,
+# barrada pelo `command -v plank` da primeira linha.
+avisa_a_dock() {
     if [ -x /usr/local/bin/tarsila-dock-apply.sh ]; then
         /usr/local/bin/tarsila-dock-apply.sh 2>/dev/null
     fi
-    nohup plank >/dev/null 2>&1 &
-    disown
 }
 
 uninstall_app() {
@@ -201,15 +203,17 @@ uninstall_app() {
                    | sudo -S -k -p "" apt-get remove -y "$package_name" 2>&1 >/dev/null) && ok=1 || ok=0
         fi
         if [ "$ok" = 1 ]; then
-            if command -v plank &>/dev/null; then
-                find "$DOCK_CONFIG" -name "*.dockitem" 2>/dev/null | while read -r dockitem; do
-                    if grep -q "$(basename "$desktop_file")" "$dockitem" 2>/dev/null; then
-                        rm -f "$dockitem"
-                    fi
-                done
-                sync_dock_order
-                restart_plank
-            fi
+            # Tirar o icone da Dock ESTAVA dentro de um `if command -v plank`.
+            # Sem o Plank instalado -- ou seja, desde 16/08/2026 -- desinstalar
+            # um aplicativo por esta tela deixava o icone dele na Dock, com o
+            # .desktop ja apagado. O usuario clicava e nao acontecia nada.
+            find "$DOCK_CONFIG" -name "*.dockitem" 2>/dev/null | while read -r dockitem; do
+                if grep -q "$(basename "$desktop_file")" "$dockitem" 2>/dev/null; then
+                    rm -f "$dockitem"
+                fi
+            done
+            sync_dock_order
+            avisa_a_dock
             if command -v notify-send &>/dev/null; then
                 notify-send "Desinstalação concluída" "'$app_name' foi removido."
             fi

@@ -69,11 +69,16 @@ fi
   if [ "$ok" = 1 ]; then
     item=$(grep -l "file://$DESKTOP" "$DOCK"/*.dockitem 2>/dev/null | head -1)
     if [ -n "$item" ]; then
-      pkill -x plank
-      sleep 0.5
+      # Ate 17/08/2026 havia um ritual em volta destas duas linhas: pkill -x
+      # plank, sleep 0.5, e um `nohup plank &` no fim. Existia por um motivo
+      # real -- o inotify do Plank corrompia dockitem mexido com ele de pe.
+      #
+      # O Plank saiu em 16/08. O pkill virou linha morta, o sleep atrasava meio
+      # segundo a toa, e o `nohup plank` chegaria a subir um Plank intruso se o
+      # pacote voltasse a ser instalado um dia. A tarsila-dock observa esta
+      # pasta e se remonta sozinha em ~400 ms: nao ha o que matar nem avisar.
       rm -f "$item"
       /usr/local/bin/tarsila-dock-apply.sh 2>/dev/null
-      nohup plank >/dev/null 2>&1 &
     fi
     command -v notify-send >/dev/null \
       && notify-send "Desinstalação concluída" "'$NOME' foi removido."
