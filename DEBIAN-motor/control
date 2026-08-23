@@ -5,7 +5,7 @@ Priority: optional
 Architecture: all
 Depends: python3, python3-gi, gir1.2-gtk-3.0, yad, apt, sudo
 Recommends: libnotify-bin
-Suggests: tarsila-gui, tarsila-store, plank
+Suggests: tarsila-gui, tarsila-store
 Replaces: tarsila-app-management (<< 2.0.0)
 Breaks: tarsila-app-management (<< 2.0.0)
 Maintainer: Piano Lab Ribeirao <adm@pianolabribeirao.com.br>

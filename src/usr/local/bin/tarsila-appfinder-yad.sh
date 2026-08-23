@@ -316,6 +316,24 @@ for name in "${!tile_icon_spec[@]}"; do
 # dois, o clique simples deixaria de marcar, e os botoes perderiam a
 # referencia do que esta selecionado. Guardando o instante do ultimo clique
 # damos conta dos dois comportamentos.
+#
+# TRAVA (mkdir, atomico): sem ela, os dois cliques do duplo clique geravam
+# DUAS janelas nesta TV box. Cada clique dispara este wrapper como processo
+# novo, e abrir um app aqui e lento o bastante (ver tarsila-abrindo: 3,8s so
+# pra Calculadora) pra que o segundo clique comece a rodar ANTES do primeiro
+# terminar de gravar \$SELECTION_FILE -- os dois liam o estado antigo ao
+# mesmo tempo, os dois se achavam "o segundo clique" e os dois chamavam
+# gio launch. mkdir e atomico no kernel: so um processo consegue criar a
+# mesma pasta, entao o segundo espera a vez em vez de correr em paralelo.
+LOCK="$SELECTION_FILE.lock"
+i=0
+while ! mkdir "\$LOCK" 2>/dev/null; do
+    i=\$((i + 1))
+    [ "\$i" -gt 50 ] && break
+    sleep 0.01
+done
+trap 'rmdir "\$LOCK" 2>/dev/null' EXIT
+
 AGORA=\$(date +%s%N)
 ANTES=""; QUANDO=0
 [ -f "$SELECTION_FILE" ] && ANTES=\$(cat "$SELECTION_FILE" 2>/dev/null)
