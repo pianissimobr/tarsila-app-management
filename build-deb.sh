@@ -73,7 +73,8 @@ empacota() {
 empacota DEBIAN-motor tarsila-motor \
     usr/local/bin/tarsila-atalho-criar:755 \
     usr/local/bin/tarsila-app-uninstall.sh:755 \
-    usr/local/bin/tarsila-pedir-senha:755
+    usr/local/bin/tarsila-pedir-senha:755 \
+    usr/share/doc/tarsila-motor/copyright:644
 
 # ------------------------------------------------------- interface gráfica
 empacota DEBIAN tarsila-app-management \
@@ -81,6 +82,7 @@ empacota DEBIAN tarsila-app-management \
     usr/local/bin/tarsila-deb-gui.py:755 \
     usr/local/bin/tarsila-deb-instalar:755 \
     usr/share/applications/tarsila-deb-installer.desktop:644 \
-    usr/share/applications/tarsila-appfinder-yad.desktop:644
+    usr/share/applications/tarsila-appfinder-yad.desktop:644 \
+    usr/share/doc/tarsila-app-management/copyright:644
 
 echo "==> pronto."
