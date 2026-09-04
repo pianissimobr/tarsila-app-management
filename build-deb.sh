@@ -15,19 +15,20 @@
 # Agora o motor é um pacote, os dois dependem dele, e a fonte é uma só.
 #
 # Uso:
-#   ./build-deb.sh            usa as versões de cada DEBIAN*/control
-#   ./build-deb.sh 9.9.9      força a versão nos dois (builds pontuais)
+#   ./build-deb.sh            gera em ./dist usando as versões de cada control
+#   ./build-deb.sh /caminho   define o diretório de destino
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-FORCA_VERSAO="${1:-}"
+DEST="${1:-$SCRIPT_DIR/dist}"
+mkdir -p "$DEST"
 
 # A versão vem do control, que é a fonte única. Escrita à mão aqui também,
 # ela vira duas verdades que envelhecem separado -- foi o que aconteceu com o
 # app-management: o control dizia 1.1.0 e o arquivo saía com 1.0.0 no nome.
 versao_de() {
     local ctl="$1" v
-    v="${FORCA_VERSAO:-$(sed -n 's/^Version: *//p' "$ctl" | head -1)}"
+    v="$(sed -n 's/^Version: *//p' "$ctl" | head -1)"
     [ -n "$v" ] || { echo "ERRO: sem Version: em $ctl" >&2; exit 1; }
     printf '%s\n' "$v"
 }
@@ -48,8 +49,6 @@ empacota() {
     echo "==> Construindo $deb..."
     cp -a "$SCRIPT_DIR/$debian_dir" "$build/DEBIAN"
     [ -f "$build/DEBIAN/postinst" ] && chmod 755 "$build/DEBIAN/postinst"
-    # O control precisa dizer a mesma versão do nome do arquivo, inclusive
-    # quando ela foi forçada por argumento.
     sed -i "s/^Version: .*/Version: $versao/" "$build/DEBIAN/control"
 
     local item origem modo destino
@@ -60,8 +59,8 @@ empacota() {
         install -m "$modo" "$SCRIPT_DIR/src/$origem" "$destino"
     done
 
-    dpkg-deb --build --root-owner-group "$build" "$SCRIPT_DIR/$deb" >/dev/null
-    echo "    $deb"
+    dpkg-deb --build --root-owner-group "$build" "$DEST/$deb" >/dev/null
+    echo "    $DEST/$deb"
 }
 
 # ------------------------------------------------------------------ motor
